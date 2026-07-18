@@ -814,7 +814,9 @@
       <div class="tabs">
         <div class="tab active" id="tabCommon" onclick="switchTab('common')">Common</div>
         <div class="tab" id="tabNew" onclick="switchTab('new')">Type</div>
+        <div class="tab" id="tabMake" onclick="switchTab('make')">Make</div>
         <div class="tab" id="tabFood" onclick="switchTab('food')">Food</div>
+        <div class="tab" id="tabShop" onclick="switchTab('shop')">Shop</div>
         <div class="tab" id="tabRest" onclick="switchTab('rest')">Restaurants</div>
       </div>
 
@@ -828,6 +830,27 @@
         <textarea id="mealInput" rows="3" placeholder="e.g. grilled chicken, brown rice, broccoli, olive oil" oninput="gradeInput()"></textarea>
       </div>
 
+      <div id="makePane" class="field" style="display:none;">
+        <label>Build your meal</label>
+        <div class="food-search"><input id="makeSearch" type="text" placeholder="Search foods to add…" oninput="filterMakeList()"></div>
+        <div class="food-list" id="makeList" style="max-height:220px;"></div>
+        <div id="makeMealPreview" style="display:none;padding:12px 20px;background:var(--card);border-radius:12px;margin-top:12px;">
+          <div style="font-size:11px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Your meal</div>
+          <div id="makeMealItems"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+            <div style="text-align:center;"><div style="font-size:12px;color:var(--muted);">Cal</div><div style="font-size:18px;font-weight:700;" id="makeTotalCal">0</div></div>
+            <div style="text-align:center;"><div style="font-size:12px;color:var(--muted);">Protein</div><div style="font-size:18px;font-weight:700;" id="makeTotalProteins">0g</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:8px;font-size:10px;">
+            <div><div style="color:var(--muted);">Carbs</div><div id="makeTotalCarbs">0g</div></div>
+            <div><div style="color:var(--muted);">Fat</div><div id="makeTotalFat">0g</div></div>
+            <div><div style="color:var(--muted);">Fiber</div><div id="makeTotalFiber">0g</div></div>
+          </div>
+          <div style="margin-top:10px;"><div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Grade</div><div style="font-size:20px;font-weight:700;" id="makeMealGrade">—</div></div>
+        </div>
+        <button class="save-btn" id="makeLogBtn" style="width:calc(100% - 40px);margin:12px 20px 0;display:none;" onclick="logMadeMeal()">Log this meal</button>
+      </div>
+
       <div id="foodPane" class="field" style="display:none;">
         <div class="rest-row" id="restRow"></div>
         <div class="food-search"><input id="foodSearch" type="text" placeholder="Search foods or restaurants…" oninput="filterFoodsWithOnline()"></div>
@@ -837,6 +860,18 @@
           <div class="online-status" id="onlineStatus"></div>
         </div>
         <div class="food-detail" id="foodDetail" style="display:none;"></div>
+      </div>
+
+      <div id="shopPane" class="field" style="display:none;">
+        <label>Shop for groceries</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;padding:0 20px;">
+          <button class="online-btn" style="font-size:12px;padding:10px;" onclick="setShopFilter('aldi')">🛒 Aldi</button>
+          <button class="online-btn" style="font-size:12px;padding:10px;" onclick="setShopFilter('target')">🎯 Target</button>
+          <button class="online-btn" style="font-size:12px;padding:10px;" onclick="setShopFilter('costco')">💰 Costco</button>
+          <button class="online-btn" style="font-size:12px;padding:10px;" onclick="setShopFilter('all')">All stores</button>
+        </div>
+        <div class="food-search" style="padding:0;"><input id="shopSearch" type="text" placeholder="Search products…" oninput="filterShopList()"></div>
+        <div class="food-list" id="shopList" style="max-height:300px;"></div>
       </div>
 
       <div id="restPane" class="field" style="display:none;">
@@ -1030,6 +1065,20 @@ const FOODS = [
   {id:'corn', name:'Corn', brand:'generic', unit:'cup', per:{cal:132,protein:5,carbs:29,fat:1.8,satFat:0.3,fiber:4,sodium:23,omega3:0}, note:'Fiber + a little sweetness.'},
   {id:'tomato', name:'Tomato', brand:'generic', unit:'cup', per:{cal:32,protein:1.6,carbs:7,fat:0.4,satFat:0,fiber:2.2,sodium:9,omega3:0}, note:'Lycopene — good for LDL.'},
   {id:'salsa', name:'Salsa', brand:'generic', unit:'cup', per:{cal:70,protein:3,carbs:16,fat:0.5,satFat:0,fiber:4,sodium:1200,omega3:0}, note:'Low cal, antioxidants. Watch sodium.'},
+  
+  // ============ PROTEIN SHAKES & SUPPLEMENTS ============
+  {id:'ascent_shake', name:'Ascent Protein Shake (chocolate)', brand:'Ascent', unit:'serving', per:{cal:170,protein:20,carbs:7,fat:4.5,satFat:2.5,fiber:2,sodium:230,omega3:0}, note:'20g protein, only 170 cal. Ascent is micellar casein — smooth texture. Great post-workout.'},
+  {id:'on_gold', name:'Optimum Nutrition Gold Standard (vanilla)', brand:'Optimum Nutrition', unit:'scoop', per:{cal:120,protein:24,carbs:1,fat:1,satFat:0.5,fiber:0,sodium:60,omega3:0}, note:'24g protein, 1g carb. Whey isolate. Industry standard.'},
+  {id:'orgain_shake', name:'Orgain Organic Protein (vanilla)', brand:'Orgain', unit:'serving', per:{cal:150,protein:20,carbs:9,fat:3,satFat:0.5,fiber:4,sodium:280,omega3:0}, note:'Plant-based, organic. 4g fiber. Slower digestion but clean ingredients.'},
+  {id:'premier_protein', name:'Premier Protein shake (chocolate)', brand:'Premier Protein', unit:'serving', per:{cal:160,protein:30,carbs:3,fat:4.5,satFat:2,fiber:1,sodium:200,omega3:0}, note:'30g protein, only 3g carb. Costco staple. Very popular.'},
+  {id:'isopure_zero', name:'Isopure Zero Carb (citrus)', brand:'Isopure', unit:'serving', per:{cal:100,protein:20,carbs:0,fat:0,satFat:0,fiber:0,sodium:140,omega3:0}, note:'Pure whey isolate, zero carb. Fast absorption. No fillers.'},
+  {id:'musclepharm', name:'Muscle Pharm Whey (chocolate)', brand:'Muscle Pharm', unit:'scoop', per:{cal:130,protein:24,carbs:2,fat:2,satFat:0.5,fiber:0,sodium:190,omega3:0}, note:'Clean whey, low sodium. Good for post-strength workouts.'},
+  {id:'vega_protein', name:'Vega Protein & Greens (vanilla)', brand:'Vega', unit:'serving', per:{cal:170,protein:20,carbs:7,fat:4.5,satFat:0.5,fiber:6,sodium:95,omega3:0}, note:'Plant-based + greens powder. 20g protein, 6g fiber. Whole food vibe.'},
+  {id:'quest_bar', name:'Quest Nutrition Bar (chocolate)', brand:'Quest', unit:'bar', per:{cal:170,protein:20,carbs:5,fat:9,satFat:5,fiber:9,sodium:200,omega3:0}, note:'20g protein, 9g fiber, only 170 cal. Works as meal replacement snack.'},
+  {id:'protein_powder_generic', name:'Whey Protein Powder (generic)', brand:'generic', unit:'scoop', per:{cal:120,protein:25,carbs:1,fat:1,satFat:0,fiber:0,sodium:50,omega3:0}, note:'Store-brand whey. High protein, minimal carbs. Mix with water or milk.'},
+  {id:'casein_powder', name:'Casein Protein (slow-release)', brand:'generic', unit:'scoop', per:{cal:130,protein:26,carbs:2,fat:1.5,satFat:1,fiber:0,sodium:200,omega3:0}, note:'Slower digestion than whey. Good before bed or between meals.'},
+  {id:'beef_collagen', name:'Beef Collagen peptides', brand:'generic', unit:'tbsp', per:{cal:45,protein:11,carbs:0,fat:0,satFat:0,fiber:0,sodium:80,omega3:0}, note:'11g protein, no carbs. Mixes into coffee, oats, smoothies. Joint support.'},
+  {id:'pea_protein', name:'Pea Protein Powder (vanilla)', brand:'generic', unit:'scoop', per:{cal:120,protein:24,carbs:1,fat:2,satFat:0,fiber:0,sodium:100,omega3:0}, note:'Plant-based, allergen-free. Slower digestion than whey.'},
 ];
 
 // ============ RESTAURANT MENU ITEMS ============
@@ -1778,7 +1827,229 @@ function renderWorkouts(){
   }).join('');
 }
 
-// ================= NUTRITIONIX RESTAURANT SEARCH =================
+// ================= MAKE A MEAL BUILDER =================
+let makeMealItems = [];
+let shopFilter = 'all';
+
+const SHOP_PRODUCTS = [
+  // ===== PROTEINS =====
+  {store:'aldi', name:'Chicken breast (fresh)', cal:165,protein:31,carbs:0,fat:3.6,satFat:1,fiber:0,sodium:75,price:5.99},
+  {store:'target', name:'Chicken breast (organic)', cal:165,protein:31,carbs:0,fat:3.6,satFat:1,fiber:0,sodium:75,price:7.99},
+  {store:'costco', name:'Chicken breast (3lb pack)', cal:165,protein:31,carbs:0,fat:3.6,satFat:1,fiber:0,sodium:75,price:12.99},
+  {store:'aldi', name:'Ground turkey (93/7)', cal:170,protein:22,carbs:0,fat:8,satFat:2,fiber:0,sodium:70,price:4.99},
+  {store:'target', name:'Ground turkey (organic)', cal:170,protein:22,carbs:0,fat:8,satFat:2,fiber:0,sodium:70,price:6.99},
+  {store:'costco', name:'Ground turkey (3lb)', cal:170,protein:22,carbs:0,fat:8,satFat:2,fiber:0,sodium:70,price:11.99},
+  {store:'aldi', name:'Salmon fillet (fresh)', cal:280,protein:25,carbs:0,fat:17,satFat:3.9,fiber:0,sodium:75,price:8.99},
+  {store:'target', name:'Salmon fillet (wild)', cal:280,protein:25,carbs:0,fat:17,satFat:3.9,fiber:0,sodium:75,price:10.99},
+  {store:'costco', name:'Salmon fillet (2lb pack)', cal:280,protein:25,carbs:0,fat:17,satFat:3.9,fiber:0,sodium:75,price:17.99},
+  {store:'aldi', name:'Eggs (dozen)', cal:155,protein:13,carbs:1.1,fat:11,satFat:3.2,fiber:0,sodium:126,price:2.49},
+  {store:'target', name:'Eggs (organic, dozen)', cal:155,protein:13,carbs:1.1,fat:11,satFat:3.2,fiber:0,sodium:126,price:4.99},
+  {store:'costco', name:'Eggs (5 dozen)', cal:155,protein:13,carbs:1.1,fat:11,satFat:3.2,fiber:0,sodium:126,price:8.99},
+  {store:'aldi', name:'Lean ground beef (93/7)', cal:180,protein:24,carbs:0,fat:8,satFat:3,fiber:0,sodium:75,price:5.99},
+  {store:'target', name:'Ground beef (grass-fed)', cal:180,protein:24,carbs:0,fat:8,satFat:3,fiber:0,sodium:75,price:8.99},
+  {store:'aldi', name:'Pork tenderloin', cal:143,protein:26,carbs:0,fat:3,satFat:1,fiber:0,sodium:55,price:6.49},
+  {store:'aldi', name:'Canned tuna (in water)', cal:99,protein:22,carbs:0,fat:0.6,satFat:0.2,fiber:0,sodium:303,price:0.89},
+  {store:'target', name:'Canned salmon', cal:206,protein:22,carbs:0,fat:13,satFat:3,fiber:0,sodium:714,price:1.49},
+  {store:'costco', name:'Tilapia fillets (2lb)', cal:96,protein:20,carbs:0,fat:1,satFat:0.3,fiber:0,sodium:75,price:9.99},
+  {store:'aldi', name:'Tofu (firm)', cal:76,protein:8,carbs:1.5,fat:4.5,satFat:0.7,fiber:0.5,sodium:7,price:1.99},
+  {store:'target', name:'Greek yogurt (nonfat)', cal:130,protein:22,carbs:9,fat:0.5,satFat:0.1,fiber:0,sodium:85,price:3.49},
+  {store:'costco', name:'Greek yogurt (32oz)', cal:130,protein:22,carbs:9,fat:0.5,satFat:0.1,fiber:0,sodium:85,price:5.49},
+  
+  // ===== VEGETABLES =====
+  {store:'aldi', name:'Broccoli (fresh)', cal:34,protein:2.8,carbs:7,fat:0.4,satFat:0.1,fiber:2.4,sodium:64,price:1.99},
+  {store:'target', name:'Broccoli (organic)', cal:34,protein:2.8,carbs:7,fat:0.4,satFat:0.1,fiber:2.4,sodium:64,price:2.49},
+  {store:'aldi', name:'Spinach (fresh, 5oz)', cal:23,protein:2.9,carbs:3.6,fat:0.4,satFat:0.1,fiber:2.2,sodium:64,price:1.49},
+  {store:'target', name:'Spinach (organic)', cal:23,protein:2.9,carbs:3.6,fat:0.4,satFat:0.1,fiber:2.2,sodium:64,price:2.99},
+  {store:'aldi', name:'Carrots (1lb)', cal:41,protein:0.9,carbs:10,fat:0.2,satFat:0,fiber:2.8,sodium:69,price:0.99},
+  {store:'aldi', name:'Bell peppers (3 pack)', cal:30,protein:1,carbs:7,fat:0.3,satFat:0,fiber:2,sodium:2,price:2.49},
+  {store:'target', name:'Bell peppers (organic)', cal:30,protein:1,carbs:7,fat:0.3,satFat:0,fiber:2,sodium:2,price:3.99},
+  {store:'aldi', name:'Zucchini (fresh)', cal:21,protein:1.5,carbs:3.5,fat:0.4,satFat:0.1,fiber:1,sodium:10,price:1.49},
+  {store:'aldi', name:'Cauliflower (fresh)', cal:25,protein:1.9,carbs:5,fat:0.3,satFat:0,fiber:2.4,sodium:30,price:2.49},
+  {store:'target', name:'Cauliflower rice', cal:25,protein:1.9,carbs:5,fat:0.3,satFat:0,fiber:2.4,sodium:30,price:3.99},
+  {store:'aldi', name:'Asparagus (fresh)', cal:27,protein:3,carbs:5,fat:0.1,satFat:0,fiber:2.1,sodium:2,price:3.99},
+  {store:'aldi', name:'Tomatoes (fresh)', cal:18,protein:0.9,carbs:3.9,fat:0.2,satFat:0,fiber:1.2,sodium:6,price:1.99},
+  {store:'aldi', name:'Onions (1lb)', cal:40,protein:1.1,carbs:9,fat:0.1,satFat:0,fiber:1.7,sodium:4,price:0.79},
+  {store:'aldi', name:'Garlic (bulb)', cal:45,protein:2,carbs:10,fat:0.5,satFat:0.1,fiber:0.7,sodium:17,price:0.49},
+  {store:'costco', name:'Mixed vegetables (frozen)', cal:50,protein:3,carbs:9,fat:0.5,satFat:0.1,fiber:2,sodium:100,price:4.99},
+  {store:'aldi', name:'Broccoli (frozen)', cal:34,protein:2.8,carbs:7,fat:0.4,satFat:0.1,fiber:2.4,sodium:64,price:1.49},
+  
+  // ===== FRUITS =====
+  {store:'aldi', name:'Blueberries (fresh, pint)', cal:57,protein:0.7,carbs:14,fat:0.3,satFat:0,fiber:2.4,sodium:1,price:3.49},
+  {store:'target', name:'Blueberries (organic, pint)', cal:57,protein:0.7,carbs:14,fat:0.3,satFat:0,fiber:2.4,sodium:1,price:4.49},
+  {store:'costco', name:'Blueberries (2lb)', cal:57,protein:0.7,carbs:14,fat:0.3,satFat:0,fiber:2.4,sodium:1,price:9.99},
+  {store:'aldi', name:'Strawberries (fresh)', cal:32,protein:0.8,carbs:8,fat:0.3,satFat:0,fiber:2,sodium:2,price:2.99},
+  {store:'aldi', name:'Bananas (bunch)', cal:89,protein:1.1,carbs:23,fat:0.3,satFat:0.1,fiber:2.6,sodium:1,price:0.59},
+  {store:'aldi', name:'Apples (3lb bag)', cal:95,protein:0.5,carbs:25,fat:0.3,satFat:0,fiber:4.4,sodium:2,price:2.99},
+  {store:'target', name:'Apples (organic)', cal:95,protein:0.5,carbs:25,fat:0.3,satFat:0,fiber:4.4,sodium:2,price:1.99},
+  {store:'aldi', name:'Oranges (3lb bag)', cal:62,protein:1.2,carbs:16,fat:0.3,satFat:0,fiber:3.1,sodium:0,price:2.49},
+  {store:'aldi', name:'Avocado (ripe)', cal:160,protein:2,carbs:9,fat:15,satFat:2.1,fiber:7,sodium:7,price:1.49},
+  {store:'target', name:'Avocado (ripe)', cal:160,protein:2,carbs:9,fat:15,satFat:2.1,fiber:7,sodium:7,price:2.49},
+  {store:'costco', name:'Mixed berries (frozen)', cal:60,protein:0.8,carbs:14,fat:0.5,satFat:0,fiber:2.5,sodium:2,price:7.99},
+  {store:'aldi', name:'Raspberries (fresh)', cal:52,protein:1.2,carbs:12,fat:0.7,satFat:0.02,fiber:6.5,sodium:1,price:3.99},
+  {store:'aldi', name:'Watermelon (whole)', cal:30,protein:0.6,carbs:7.6,fat:0.15,satFat:0,fiber:0.4,sodium:1,price:4.99},
+  
+  // ===== GRAINS & BREAD =====
+  {store:'aldi', name:'Brown rice (cooked cup)', cal:111,protein:2.6,carbs:23,fat:0.9,satFat:0.2,fiber:1.8,sodium:5,price:1.49},
+  {store:'aldi', name:'Oats (rolled, 1lb)', cal:150,protein:5,carbs:27,fat:3,satFat:0.5,fiber:4,sodium:1,price:2.49},
+  {store:'target', name:'Oats (organic, 1lb)', cal:150,protein:5,carbs:27,fat:3,satFat:0.5,fiber:4,sodium:1,price:3.99},
+  {store:'costco', name:'Oats (large container)', cal:150,protein:5,carbs:27,fat:3,satFat:0.5,fiber:4,sodium:1,price:5.99},
+  {store:'aldi', name:'Whole grain bread (loaf)', cal:80,protein:4,carbs:14,fat:1,satFat:0.2,fiber:2.4,sodium:180,price:1.99},
+  {store:'target', name:'Whole grain bread (organic)', cal:80,protein:4,carbs:14,fat:1,satFat:0.2,fiber:2.4,sodium:180,price:3.49},
+  {store:'aldi', name:'White rice (1lb)', cal:130,protein:2.7,carbs:28,fat:0.3,satFat:0.1,fiber:0.4,sodium:5,price:1.49},
+  {store:'aldi', name:'Quinoa (dry, 1lb)', cal:222,protein:8,carbs:39,fat:4,satFat:0.5,fiber:7,sodium:9,price:4.99},
+  {store:'target', name:'Pasta (whole wheat)', cal:174,protein:7.5,carbs:34,fat:1.1,satFat:0.2,fiber:6,sodium:7,price:1.99},
+  {store:'aldi', name:'Pasta (regular)', cal:131,protein:5,carbs:25,fat:1.1,satFat:0.2,fiber:1.8,sodium:3,price:0.89},
+  {store:'costco', name:'Cereal variety pack', cal:120,protein:3,carbs:24,fat:1.5,satFat:0.5,fiber:3,sodium:200,price:8.99},
+  
+  // ===== DAIRY =====
+  {store:'aldi', name:'Milk (1% low-fat, 1gal)', cal:102,protein:8,carbs:12,fat:2.4,satFat:1.5,fiber:0,sodium:107,price:2.49},
+  {store:'target', name:'Milk (organic, 1gal)', cal:102,protein:8,carbs:12,fat:2.4,satFat:1.5,fiber:0,sodium:107,price:4.49},
+  {store:'aldi', name:'Almond milk (unsweetened)', cal:30,protein:1,carbs:1,fat:2.5,satFat:0.2,fiber:0.5,sodium:170,price:1.99},
+  {store:'target', name:'Oat milk (unsweetened)', cal:30,protein:1,carbs:1,fat:1.5,satFat:0.1,fiber:0.5,sodium:90,price:2.49},
+  {store:'aldi', name:'Cheddar cheese (8oz)', cal:113,protein:7,carbs:0.4,fat:9,satFat:6,fiber:0,sodium:180,price:3.49},
+  {store:'aldi', name:'Feta cheese (8oz)', cal:99,protein:7,carbs:1.1,fat:8,satFat:5.7,fiber:0,sodium:520,price:3.99},
+  {store:'aldi', name:'Mozzarella (low-fat, 8oz)', cal:79,protein:8,carbs:0.6,fat:4.5,satFat:2.9,fiber:0,sodium:190,price:2.99},
+  {store:'aldi', name:'Cottage cheese (nonfat)', cal:80,protein:14,carbs:3,fat:1,satFat:0.6,fiber:0,sodium:390,price:1.99},
+  {store:'costco', name:'Yogurt (Greek, bulk)', cal:130,protein:22,carbs:9,fat:0.5,satFat:0.1,fiber:0,sodium:85,price:9.99},
+  {store:'aldi', name:'Butter (unsalted)', cal:102,protein:0.1,carbs:0,fat:11.5,satFat:7.3,fiber:0,sodium:2,price:3.99},
+  
+  // ===== NUTS & SEEDS =====
+  {store:'aldi', name:'Almonds (raw, 1lb)', cal:164,protein:6,carbs:6,fat:14,satFat:1.1,fiber:3.5,sodium:0,price:6.49},
+  {store:'target', name:'Almonds (organic, 1lb)', cal:164,protein:6,carbs:6,fat:14,satFat:1.1,fiber:3.5,sodium:0,price:8.99},
+  {store:'costco', name:'Almonds (2lb bag)', cal:164,protein:6,carbs:6,fat:14,satFat:1.1,fiber:3.5,sodium:0,price:12.99},
+  {store:'aldi', name:'Peanuts (raw, 1lb)', cal:161,protein:7,carbs:6,fat:14,satFat:1.9,fiber:2.5,sodium:2,price:3.99},
+  {store:'aldi', name:'Peanut butter (2lb jar)', cal:94,protein:4,carbs:3,fat:8,satFat:1.5,fiber:1,sodium:75,price:3.49},
+  {store:'target', name:'Almond butter (organic)', cal:98,protein:4,carbs:3,fat:9,satFat:0.7,fiber:1.1,sodium:0,price:4.99},
+  {store:'aldi', name:'Sunflower seeds (raw)', cal:165,protein:5.5,carbs:7,fat:14,satFat:1.5,fiber:2.4,sodium:0,price:2.99},
+  {store:'aldi', name:'Chia seeds (1lb)', cal:486,protein:15,carbs:42,fat:26,satFat:2.7,fiber:34,sodium:16,price:7.99},
+  {store:'costco', name:'Mixed nuts (2lb)', cal:185,protein:5.5,carbs:7,fat:17,satFat:2,fiber:2.5,sodium:0,price:9.99},
+  
+  // ===== OILS & CONDIMENTS =====
+  {store:'aldi', name:'Olive oil (25.5oz)', cal:119,protein:0,carbs:0,fat:14,satFat:1.9,fiber:0,sodium:0,price:4.99},
+  {store:'target', name:'Olive oil (organic, 25oz)', cal:119,protein:0,carbs:0,fat:14,satFat:1.9,fiber:0,sodium:0,price:6.99},
+  {store:'costco', name:'Olive oil (51oz)', cal:119,protein:0,carbs:0,fat:14,satFat:1.9,fiber:0,sodium:0,price:8.99},
+  {store:'aldi', name:'Avocado oil (25oz)', cal:120,protein:0,carbs:0,fat:14,satFat:1,fiber:0,sodium:0,price:5.99},
+  {store:'aldi', name:'Coconut oil (virgin)', cal:117,protein:0,carbs:0,fat:14,satFat:12,fiber:0,sodium:0,price:4.99},
+  {store:'aldi', name:'Vinegar (apple cider)', cal:18,protein:0,carbs:0.9,fat:0,satFat:0,fiber:0,sodium:7,price:1.99},
+  {store:'aldi', name:'Salsa (mild)', cal:70,protein:3,carbs:16,fat:0.5,satFat:0,fiber:4,sodium:1200,price:1.99},
+  {store:'target', name:'Salsa (organic)', cal:70,protein:3,carbs:16,fat:0.5,satFat:0,fiber:4,sodium:1200,price:2.99},
+  {store:'aldi', name:'Mustard (yellow)', cal:3,protein:0.2,carbs:0,fat:0,satFat:0,fiber:0,sodium:195,price:0.99},
+  {store:'aldi', name:'Soy sauce (low-sodium)', cal:11,protein:1.9,carbs:0.9,fat:0,satFat:0,fiber:0,sodium:575,price:1.49},
+  
+  // ===== PROTEIN SHAKES & SUPPLEMENTS =====
+  {store:'costco', name:'Ascent protein shake (12 pack)', cal:170,protein:20,carbs:7,fat:4.5,satFat:2.5,fiber:2,sodium:230,price:27.99},
+  {store:'aldi', name:'Whey protein powder (1lb)', cal:120,protein:25,carbs:1,fat:1,satFat:0,fiber:0,sodium:50,price:12.99},
+  {store:'target', name:'Protein powder (plant-based)', cal:150,protein:20,carbs:8,fat:3,satFat:0.5,fiber:3,sodium:150,price:14.99},
+  {store:'costco', name:'Protein bars (variety pack)', cal:200,protein:20,carbs:10,fat:8,satFat:4,fiber:6,sodium:150,price:16.99},
+  
+  // ===== FROZEN FOODS =====
+  {store:'aldi', name:'Frozen chicken breast', cal:165,protein:31,carbs:0,fat:3.6,satFat:1,fiber:0,sodium:75,price:4.99},
+  {store:'target', name:'Frozen salmon (wild)', cal:280,protein:25,carbs:0,fat:17,satFat:3.9,fiber:0,sodium:75,price:8.99},
+  {store:'aldi', name:'Frozen broccoli (10oz)', cal:34,protein:2.8,carbs:7,fat:0.4,satFat:0.1,fiber:2.4,sodium:64,price:1.49},
+  {store:'costco', name:'Frozen mixed vegetables (5lb)', cal:50,protein:3,carbs:9,fat:0.5,satFat:0.1,fiber:2,sodium:100,price:7.99},
+  {store:'aldi', name:'Frozen berries (16oz)', cal:60,protein:0.8,carbs:14,fat:0.5,satFat:0,fiber:2.5,sodium:2,price:3.49},
+  
+  // ===== PANTRY STAPLES =====
+  {store:'aldi', name:'Canned beans (black, 15oz)', cal:120,protein:8,carbs:21,fat:0.5,satFat:0.1,fiber:6,sodium:380,price:0.69},
+  {store:'aldi', name:'Canned beans (pinto, 15oz)', cal:120,protein:8,carbs:21,fat:0.5,satFat:0.1,fiber:6,sodium:380,price:0.69},
+  {store:'aldi', name:'Canned chickpeas (15oz)', cal:269,protein:15,carbs:45,fat:4,satFat:0.4,fiber:12,sodium:400,price:0.89},
+  {store:'target', name:'Canned tomatoes (28oz)', cal:60,protein:2.4,carbs:14,fat:0.7,satFat:0.1,fiber:3,sodium:1080,price:1.49},
+  {store:'aldi', name:'Peanut butter (creamy)', cal:94,protein:4,carbs:3,fat:8,satFat:1.5,fiber:1,sodium:75,price:1.99},
+  {store:'aldi', name:'Honey (raw, 12oz)', cal:64,protein:0.1,carbs:17,fat:0,satFat:0,fiber:0,sodium:4,price:3.99},
+  {store:'target', name:'Maple syrup (organic)', cal:52,protein:0,carbs:13,fat:0,satFat:0,fiber:0,sodium:7,price:4.99},
+  {store:'aldi', name:'Balsamic vinegar', cal:14,protein:0.5,carbs:2.6,fat:0,satFat:0,fiber:0,sodium:120,price:2.99},
+  
+  // ===== BEVERAGES =====
+  {store:'aldi', name:'Coffee (ground, 12oz)', cal:2,protein:0.3,carbs:0,fat:0,satFat:0,fiber:0,sodium:4,price:3.99},
+  {store:'target', name:'Coffee (organic)', cal:2,protein:0.3,carbs:0,fat:0,satFat:0,fiber:0,sodium:4,price:5.99},
+  {store:'costco', name:'Coffee (bulk)', cal:2,protein:0.3,carbs:0,fat:0,satFat:0,fiber:0,sodium:4,price:7.99},
+  {store:'aldi', name:'Tea (green, variety)', cal:0,protein:0,carbs:0,fat:0,satFat:0,fiber:0,sodium:0,price:2.99},
+  {store:'aldi', name:'Water (filtered, 1gal)', cal:0,protein:0,carbs:0,fat:0,satFat:0,fiber:0,sodium:0,price:1.99},
+  {store:'costco', name:'Water (case, 35 bottles)', cal:0,protein:0,carbs:0,fat:0,satFat:0,fiber:0,sodium:0,price:4.99},
+  {store:'aldi', name:'Sparkling water (variety)', cal:0,protein:0,carbs:0,fat:0,satFat:0,fiber:0,sodium:0,price:2.49},
+];
+
+function filterMakeList(){
+  const q = document.getElementById('makeSearch').value.toLowerCase();
+  const foods = q.length < 2 ? FOODS.filter(f=>!f.restaurant).slice(0,20) : FOODS.filter(f=>!f.restaurant && f.name.toLowerCase().includes(q));
+  document.getElementById('makeList').innerHTML = foods.map(f =>
+    `<div class="food-opt" onclick="addToMakeMeal('${f.id}','${escapeHtml(f.name)}',${JSON.stringify(f.per).replace(/"/g,'&quot;')})">
+      <div><div class="fo-name">${escapeHtml(f.name)}</div><div class="fo-brand">${f.unit}</div></div>
+      <div style="color:var(--muted);font-size:18px;">+</div>
+    </div>`
+  ).join('');
+}
+
+function addToMakeMeal(id, name, nutrition){
+  makeMealItems.push({id, name, nutrition});
+  updateMakeMealPreview();
+  document.getElementById('makeSearch').value='';
+  filterMakeList();
+}
+
+function updateMakeMealPreview(){
+  if (!makeMealItems.length){
+    document.getElementById('makeMealPreview').style.display='none';
+    document.getElementById('makeLogBtn').style.display='none';
+    return;
+  }
+  const totals = {cal:0,protein:0,carbs:0,fat:0,fiber:0,satFat:0};
+  makeMealItems.forEach(m => {
+    Object.keys(totals).forEach(k => totals[k] += m.nutrition[k]||0);
+  });
+  const score = scoreMeal(makeMealItems.map(m=>m.name).join(', '));
+  const grade = scoreToGrade(score).g;
+  
+  document.getElementById('makeMealItems').innerHTML = makeMealItems.map((m,i) =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span>${escapeHtml(m.name)}</span><button class="md-danger" style="font-size:10px;padding:4px 8px;" onclick="makeMealItems.splice(${i},1);updateMakeMealPreview()">Remove</button></div>`
+  ).join('');
+  
+  document.getElementById('makeTotalCal').textContent = Math.round(totals.cal);
+  document.getElementById('makeTotalProteins').textContent = totals.protein.toFixed(0)+'g';
+  document.getElementById('makeTotalCarbs').textContent = totals.carbs.toFixed(0)+'g';
+  document.getElementById('makeTotalFat').textContent = totals.fat.toFixed(0)+'g';
+  document.getElementById('makeTotalFiber').textContent = totals.fiber.toFixed(0)+'g';
+  document.getElementById('makeMealGrade').textContent = grade;
+  document.getElementById('makeMealGrade').style.color = gradeColor(grade);
+  document.getElementById('makeMealPreview').style.display='block';
+  document.getElementById('makeLogBtn').style.display='block';
+}
+
+function logMadeMeal(){
+  if (!makeMealItems.length) return;
+  const name = makeMealItems.map(m=>m.name).join(', ');
+  const totals = {cal:0,protein:0,carbs:0,fat:0,fiber:0,satFat:0,sodium:0,omega3:0};
+  makeMealItems.forEach(m => {
+    Object.keys(totals).forEach(k => totals[k] += m.nutrition[k]||0);
+  });
+  const score = scoreMeal(name);
+  const grade = scoreToGrade(score).g;
+  state.sel = {slot:'breakfast', text:name, grade:grade, mode:'make', nutrition:totals};
+  makeMealItems = [];
+  updateMakeMealPreview();
+  document.getElementById('makeSearch').value='';
+  saveMeal();
+}
+
+// ================= SHOP TAB =================
+function setShopFilter(store){
+  shopFilter = store;
+  document.querySelectorAll('#shopPane button').forEach(b => b.style.opacity='0.5');
+  event.target.style.opacity='1';
+  filterShopList();
+}
+
+function filterShopList(){
+  const q = document.getElementById('shopSearch').value.toLowerCase();
+  const products = shopFilter==='all' ? SHOP_PRODUCTS : SHOP_PRODUCTS.filter(p=>p.store===shopFilter);
+  const filtered = q.length < 2 ? products : products.filter(p=>p.name.toLowerCase().includes(q));
+  document.getElementById('shopList').innerHTML = filtered.map((p,i) =>
+    `<div class="food-opt" onclick="addToMakeMeal('shop_${i}','${escapeHtml(p.name)}',${JSON.stringify({cal:p.cal,protein:p.protein,carbs:p.carbs,fat:p.fat,satFat:p.satFat,fiber:p.fiber,sodium:p.sodium,omega3:0}).replace(/"/g,'&quot;')})">
+      <div><div class="fo-name">${escapeHtml(p.name)}</div><div class="fo-brand">${p.store.toUpperCase()} · $${p.price}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;"><span style="color:var(--muted);font-size:11px;">${Math.round(p.cal)} cal</span><div style="color:var(--muted);font-size:18px;">+</div></div>
+    </div>`
+  ).join('');
+}
 let nxCurrentRest = null, nxCurrentItems = [];
 async function searchRestaurants(q){
   if (!q || q.length < 2){
@@ -1901,13 +2172,29 @@ function addNxItem(idx){
 function switchTab(mode){
   document.getElementById('tabCommon').classList.toggle('active', mode==='common');
   document.getElementById('tabNew').classList.toggle('active', mode==='new');
+  document.getElementById('tabMake').classList.toggle('active', mode==='make');
   document.getElementById('tabFood').classList.toggle('active', mode==='food');
+  document.getElementById('tabShop').classList.toggle('active', mode==='shop');
   document.getElementById('tabRest').classList.toggle('active', mode==='rest');
   document.getElementById('commonPane').style.display = mode==='common'?'block':'none';
   document.getElementById('newPane').style.display = mode==='new'?'block':'none';
+  document.getElementById('makePane').style.display = mode==='make'?'block':'none';
   document.getElementById('foodPane').style.display = mode==='food'?'block':'none';
+  document.getElementById('shopPane').style.display = mode==='shop'?'block':'none';
   document.getElementById('restPane').style.display = mode==='rest'?'block':'none';
   state.sel.mode = mode;
+  if (mode==='make'){
+    document.getElementById('makeSearch').value='';
+    makeMealItems = [];
+    updateMakeMealPreview();
+    filterMakeList();
+  }
+  if (mode==='shop'){
+    document.getElementById('shopSearch').value='';
+    shopFilter='all';
+    document.querySelectorAll('#shopPane button').forEach((b,i) => b.style.opacity = (i===3?'1':'0.5'));
+    filterShopList();
+  }
   if (mode==='food'){
     document.getElementById('foodSearch').value='';
     document.getElementById('onlineSearchWrap').style.display='none';
@@ -2174,12 +2461,25 @@ function toggleHistDay(k){
 // false-match every meal containing the word "grilled".
 function parseIngredients(name){
   const t = name.toLowerCase();
+  const words = t.split(/[,\s\/\(\)]+/).filter(w=>w.length>2);
   const found = [];
   FOODS.filter(f => !f.restaurant).forEach(f => {
     const key = f.name.toLowerCase().split('(')[0].trim();
-    const firstWord = key.split(' ')[0];
-    if (t.includes(key) || (firstWord.length>3 && t.includes(firstWord))){
-      if(!found.find(x=>x.id===f.id)) found.push(f);
+    const keyWords = key.split(/\s+/);
+    const mainWord = keyWords[0];
+    
+    // Match if:
+    // 1. Full ingredient name is in text (e.g., "brown rice" in description)
+    // 2. Main ingredient word + exact word boundary match (e.g., "banana" as complete word, not "bananas")
+    let match = false;
+    if (t.includes(key)){ match = true; }
+    else if (mainWord.length > 3 && words.some(w => w===mainWord || w.startsWith(mainWord.slice(0,-1)))){
+      // Allow plural/singular match but only for clear ingredient words
+      match = true;
+    }
+    
+    if (match && !found.find(x=>x.id===f.id)){
+      found.push(f);
     }
   });
   return found;
